@@ -100,6 +100,8 @@ USER_COOLDOWN_SECONDS=3
 - Do not upload huge data through Telegram Bot API; the normal Bot API has small download limits.
 - For very large datasets, keep the bot on a VPS/RDP with SSD storage or move the index to a real database service.
 - The bot scans all supported files inside `data`; it is not tied to any specific file name.
+- Duplicate files are detected by SHA256 hash and skipped during indexing.
+- If the same file is uploaded through Telegram again, the new copy is removed.
 
 ## Production Docs
 

@@ -4,7 +4,7 @@ import shutil
 import sys
 
 from config import get_settings
-from database import data_files, ensure_dirs, stats
+from database import data_files, ensure_dirs, fingerprint_file, stats
 
 
 def status(name: str, ok: bool, detail: str) -> bool:
@@ -29,6 +29,16 @@ def main() -> int:
 
     files = data_files(settings.data_dir)
     checks.append(status("DATA_FILES", bool(files), f"{len(files)} supported files"))
+    seen: set[tuple[int, str]] = set()
+    duplicates = 0
+    for path in files:
+        fingerprint = fingerprint_file(path)
+        identity = (fingerprint.size, fingerprint.sha256)
+        if identity in seen:
+            duplicates += 1
+        else:
+            seen.add(identity)
+    checks.append(status("DUPLICATES", duplicates == 0, f"{duplicates} duplicate files"))
 
     indexed_lines, indexed_files = stats(settings.db_path)
     checks.append(status("INDEX", indexed_lines > 0, f"{indexed_lines:,} lines, {indexed_files:,} files"))

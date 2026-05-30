@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 import tempfile
+from hashlib import sha256
 from collections.abc import Iterable
 from contextlib import closing
 from dataclasses import dataclass
@@ -18,6 +19,20 @@ class SearchResult:
     truncated_by_size: bool = False
 
 
+@dataclass(frozen=True)
+class FileFingerprint:
+    path: Path
+    size: int
+    sha256: str
+
+
+@dataclass(frozen=True)
+class RebuildResult:
+    indexed_lines: int
+    indexed_files: int
+    skipped_duplicate_files: int
+
+
 def ensure_dirs(data_dir: Path, db_path: Path, tmp_dir: Path) -> None:
     data_dir.mkdir(parents=True, exist_ok=True)
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -32,6 +47,31 @@ def data_files(data_dir: Path) -> list[Path]:
         for path in data_dir.iterdir()
         if path.is_file() and path.suffix.lower() in TEXT_EXTENSIONS
     )
+
+
+def fingerprint_file(path: Path) -> FileFingerprint:
+    digest = sha256()
+    size = 0
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+            size += len(chunk)
+    return FileFingerprint(path=path, size=size, sha256=digest.hexdigest())
+
+
+def find_duplicate_file(data_dir: Path, candidate: Path) -> Path | None:
+    if not candidate.exists():
+        return None
+
+    candidate_fp = fingerprint_file(candidate)
+    for path in data_files(data_dir):
+        if path.resolve() == candidate.resolve():
+            continue
+        if path.stat().st_size != candidate_fp.size:
+            continue
+        if fingerprint_file(path).sha256 == candidate_fp.sha256:
+            return path
+    return None
 
 
 def _connect(db_path: Path) -> sqlite3.Connection:
@@ -77,7 +117,7 @@ def _iter_file_records(path: Path) -> Iterable[tuple[str, str, str, int]]:
                 yield key, line, path.name, line_no
 
 
-def rebuild_index(data_dir: Path, db_path: Path, batch_size: int = 10_000) -> int:
+def rebuild_index(data_dir: Path, db_path: Path, batch_size: int = 10_000) -> RebuildResult:
     ensure_dirs(data_dir, db_path, db_path.parent)
     db_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -88,6 +128,9 @@ def rebuild_index(data_dir: Path, db_path: Path, batch_size: int = 10_000) -> in
     temp_file.close()
 
     count = 0
+    indexed_files = 0
+    skipped_duplicate_files = 0
+    seen_hashes: set[tuple[int, str]] = set()
     try:
         with closing(_connect(temp_path)) as conn:
             conn.execute("DROP TABLE IF EXISTS records")
@@ -105,6 +148,14 @@ def rebuild_index(data_dir: Path, db_path: Path, batch_size: int = 10_000) -> in
 
             batch: list[tuple[str, str, str, int]] = []
             for path in data_files(data_dir):
+                fingerprint = fingerprint_file(path)
+                file_identity = (fingerprint.size, fingerprint.sha256)
+                if file_identity in seen_hashes:
+                    skipped_duplicate_files += 1
+                    continue
+                seen_hashes.add(file_identity)
+                indexed_files += 1
+
                 for record in _iter_file_records(path):
                     batch.append(record)
                     if len(batch) >= batch_size:
@@ -135,7 +186,7 @@ def rebuild_index(data_dir: Path, db_path: Path, batch_size: int = 10_000) -> in
 
         db_path.unlink(missing_ok=True)
         temp_path.replace(db_path)
-        return count
+        return RebuildResult(count, indexed_files, skipped_duplicate_files)
     except Exception:
         temp_path.unlink(missing_ok=True)
         raise

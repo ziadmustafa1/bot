@@ -20,7 +20,7 @@ from access_control import (
     revoke_code,
 )
 from config import Settings, get_settings
-from database import ensure_dirs, rebuild_index, search_to_file, stats
+from database import ensure_dirs, find_duplicate_file, rebuild_index, search_to_file, stats
 
 
 logging.basicConfig(
@@ -414,7 +414,7 @@ async def rebuild(update: Any, context: Any) -> None:
         message = await update.message.reply_text("Scanning data folder and rebuilding index...")
         started = time.monotonic()
         try:
-            total = await asyncio.to_thread(rebuild_index, settings.data_dir, settings.db_path)
+            result = await asyncio.to_thread(rebuild_index, settings.data_dir, settings.db_path)
         except Exception:
             logger.exception("Index rebuild failed")
             await message.edit_text("Index rebuild failed. Check server logs.")
@@ -422,7 +422,11 @@ async def rebuild(update: Any, context: Any) -> None:
 
         elapsed = time.monotonic() - started
         await message.edit_text(
-            f"Index rebuilt successfully.\nLines: {total:,}\nTime: {elapsed:.1f}s"
+            "Index rebuilt successfully.\n"
+            f"Lines: {result.indexed_lines:,}\n"
+            f"Files: {result.indexed_files:,}\n"
+            f"Duplicate files skipped: {result.skipped_duplicate_files:,}\n"
+            f"Time: {elapsed:.1f}s"
         )
 
 
@@ -450,6 +454,13 @@ async def handle_document(update: Any, context: Any) -> None:
     telegram_file = await document.get_file()
     await update.message.chat.send_action(ChatAction.UPLOAD_DOCUMENT)
     await telegram_file.download_to_drive(custom_path=target)
+    duplicate = await asyncio.to_thread(find_duplicate_file, settings.data_dir, target)
+    if duplicate is not None:
+        target.unlink(missing_ok=True)
+        await update.message.reply_text(
+            f"Duplicate file skipped.\nAlready exists as: {duplicate.name}"
+        )
+        return
     await update.message.reply_text(f"Saved file: {safe_name}\nRebuilding index now.")
     await rebuild(update, context)
 
@@ -596,8 +607,10 @@ def main() -> None:
     if args.command == "run":
         run_bot(settings)
     elif args.command == "build-index":
-        total = rebuild_index(settings.data_dir, settings.db_path)
-        print(f"Indexed {total:,} lines")
+        result = rebuild_index(settings.data_dir, settings.db_path)
+        print(f"Indexed {result.indexed_lines:,} lines")
+        print(f"Files: {result.indexed_files:,}")
+        print(f"Duplicate files skipped: {result.skipped_duplicate_files:,}")
     elif args.command == "stats":
         total, files = stats(settings.db_path)
         print(f"Indexed lines: {total:,}")

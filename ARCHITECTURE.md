@@ -49,8 +49,10 @@ bot.py
    - `.log`
    - `.dat`
 4. Data is read line by line in batches.
-5. A new SQLite database is built in a temporary file.
-6. The old index is atomically replaced only after success.
+5. File fingerprints are calculated with SHA256.
+6. Duplicate files are skipped even if their names are different.
+7. A new SQLite database is built in a temporary file.
+8. The old index is atomically replaced only after success.
 
 This keeps searches using the previous index while a rebuild is prepared.
 
