@@ -113,3 +113,57 @@ Rebuild creates a new database first, then replaces the old one after success.
 - If search says no index: run `.\build_index.ps1` or `/sync`.
 - If result is truncated: increase `MAX_RESULT_FILE_MB` only if Telegram and disk can handle it.
 - If server is busy: increase server resources or tune `SEARCH_CONCURRENCY` and `SEARCH_QUEUE_LIMIT`.
+
+## Large Telegram Uploads
+
+The public Telegram Bot API cannot download files larger than 20MB. To accept large uploads through Telegram, run a local Bot API server on the VPS.
+
+Install dependencies:
+
+```bash
+apt update
+apt install git make g++ cmake zlib1g-dev libssl-dev gperf -y
+```
+
+Build the server:
+
+```bash
+cd /opt
+git clone --recursive https://github.com/tdlib/telegram-bot-api.git
+cd telegram-bot-api
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --target install
+```
+
+Install service:
+
+```bash
+mkdir -p /opt/bot/telegram-bot-api-data
+chown -R botrunner:botrunner /opt/bot/telegram-bot-api-data
+cp /opt/bot/systemd/telegram-bot-api.service /etc/systemd/system/telegram-bot-api.service
+systemctl daemon-reload
+systemctl enable telegram-bot-api
+systemctl start telegram-bot-api
+```
+
+Update `/opt/bot/.env`:
+
+```env
+LOCAL_BOT_API_URL=http://127.0.0.1:8081
+MAX_TELEGRAM_DOWNLOAD_MB=2000
+```
+
+Restart the bot:
+
+```bash
+systemctl restart telegram-bot
+```
+
+Check logs:
+
+```bash
+journalctl -u telegram-bot-api -f
+journalctl -u telegram-bot -f
+```

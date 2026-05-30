@@ -443,11 +443,15 @@ async def handle_document(update: Any, context: Any) -> None:
     if document is None or not document.file_name:
         await update.message.reply_text("Send a valid text file.")
         return
-    if document.file_size and document.file_size > settings.max_telegram_download_mb * 1024 * 1024:
+    if (
+        not settings.local_bot_api_url
+        and document.file_size
+        and document.file_size > settings.max_telegram_download_mb * 1024 * 1024
+    ):
         await update.message.reply_text(
             f"File is too big for Telegram Bot API download.\n"
             f"Max upload through bot: {settings.max_telegram_download_mb}MB\n"
-            "Upload it directly to the server data folder, then use /sync."
+            "Use a local Bot API server or upload it directly to the server data folder, then use /sync."
         )
         return
 
@@ -464,10 +468,10 @@ async def handle_document(update: Any, context: Any) -> None:
         await telegram_file.download_to_drive(custom_path=target)
     except Exception as exc:
         logger.exception("Document download failed")
-        await update.message.reply_text(
-            "Could not download this file from Telegram.\n"
-            "If it is larger than 20MB, upload it directly to the server data folder and use /sync."
-        )
+        hint = "Check server logs."
+        if not settings.local_bot_api_url:
+            hint = "If it is larger than 20MB, configure LOCAL_BOT_API_URL or upload it directly to data and use /sync."
+        await update.message.reply_text(f"Could not download this file from Telegram.\n{hint}")
         return
     duplicate = await asyncio.to_thread(find_duplicate_file, settings.data_dir, target)
     if duplicate is not None:
@@ -567,13 +571,19 @@ def create_application(settings: Settings) -> Any:
     init_access_db(settings.auth_db_path)
     if not settings.admin_ids:
         logger.warning("ADMIN_IDS is empty. Admin commands are disabled until you set it in .env.")
-    app = (
+    builder = (
         Application.builder()
         .token(settings.bot_token)
         .concurrent_updates(True)
         .post_init(configure_bot_commands)
-        .build()
     )
+    if settings.local_bot_api_url:
+        builder = (
+            builder.base_url(f"{settings.local_bot_api_url}/bot")
+            .base_file_url(f"{settings.local_bot_api_url}/file/bot")
+            .local_mode(True)
+        )
+    app = builder.build()
     app.bot_data["settings"] = settings
     app.bot_data["search_semaphore"] = asyncio.Semaphore(settings.search_concurrency)
     app.bot_data["search_queue_lock"] = asyncio.Lock()

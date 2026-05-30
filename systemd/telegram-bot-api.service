@@ -1,0 +1,16 @@
+[Unit]
+Description=Local Telegram Bot API Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=botrunner
+Group=botrunner
+WorkingDirectory=/opt/bot
+ExecStart=/usr/local/bin/telegram-bot-api --local --http-port=8081 --dir=/opt/bot/telegram-bot-api-data
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

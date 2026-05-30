@@ -15,6 +15,7 @@ Set:
 ```env
 BOT_TOKEN=your_token
 SUPPORT_USERNAME=@I_INW
+LOCAL_BOT_API_URL=
 ADMIN_IDS=your_telegram_id
 ```
 
@@ -91,7 +92,7 @@ MAX_RESULTS_PER_QUERY=0
 SEARCH_CONCURRENCY=4
 SEARCH_QUEUE_LIMIT=20
 USER_COOLDOWN_SECONDS=3
-MAX_TELEGRAM_DOWNLOAD_MB=20
+MAX_TELEGRAM_DOWNLOAD_MB=2000
 ```
 
 - `MIN_PREFIX_LENGTH` prevents huge accidental searches with very short BINs.
@@ -100,7 +101,16 @@ MAX_TELEGRAM_DOWNLOAD_MB=20
 - `SEARCH_CONCURRENCY` limits simultaneous searches.
 - `SEARCH_QUEUE_LIMIT` limits how many searches can wait when all workers are busy.
 - `USER_COOLDOWN_SECONDS` slows repeated searches from the same user.
-- `MAX_TELEGRAM_DOWNLOAD_MB` rejects oversized Telegram uploads before download.
+- `MAX_TELEGRAM_DOWNLOAD_MB` rejects oversized Telegram uploads before download when not using a local Bot API server.
+
+## Large Telegram Uploads
+
+The public Telegram Bot API can download files up to 20MB. To receive larger files through the bot, run a local Bot API server and set:
+
+```env
+LOCAL_BOT_API_URL=http://127.0.0.1:8081
+MAX_TELEGRAM_DOWNLOAD_MB=2000
+```
 
 ## Notes
 

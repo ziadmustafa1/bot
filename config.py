@@ -32,6 +32,7 @@ def _admin_ids() -> set[int]:
 class Settings:
     bot_token: str
     support_username: str
+    local_bot_api_url: str
     data_dir: Path
     db_path: Path
     auth_db_path: Path
@@ -50,6 +51,7 @@ def get_settings() -> Settings:
     return Settings(
         bot_token=os.getenv("BOT_TOKEN", "").strip(),
         support_username=os.getenv("SUPPORT_USERNAME", "@I_INW").strip(),
+        local_bot_api_url=os.getenv("LOCAL_BOT_API_URL", "").strip().rstrip("/"),
         data_dir=Path(os.getenv("DATA_DIR", "data")),
         db_path=Path(os.getenv("DB_PATH", "index/data.sqlite3")),
         auth_db_path=Path(os.getenv("AUTH_DB_PATH", "index/auth.sqlite3")),
