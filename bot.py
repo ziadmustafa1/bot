@@ -140,7 +140,14 @@ def admin_denied_message(settings: Settings) -> str:
     return "Admin only."
 
 
+def support_line(settings: Settings) -> str:
+    if not settings.support_username:
+        return ""
+    return f"\nSupport: {settings.support_username}"
+
+
 async def start(update: Any, context: Any) -> None:
+    settings: Settings = context.application.bot_data["settings"]
     await update.message.reply_text(
         "BIN Search Bot\n\n"
         "Send BIN\n\n"
@@ -148,6 +155,7 @@ async def start(update: Any, context: Any) -> None:
         "/redeem CODE\n"
         "/myaccess\n\n"
         "Use /help for commands."
+        f"{support_line(settings)}"
     )
 
 
@@ -167,6 +175,8 @@ async def help_command(update: Any, context: Any) -> None:
         "/id - show your Telegram ID",
         "/stats - show index stats",
     ]
+    if settings.support_username:
+        lines.append(f"Support: {settings.support_username}")
     if is_admin(settings, user_id):
         lines.extend(
             [
@@ -451,7 +461,10 @@ async def search(update: Any, context: Any) -> None:
     user_id = update.effective_user.id if update.effective_user else None
 
     if not await asyncio.to_thread(user_can_search, settings, user_id):
-        await update.message.reply_text("No active access. Send /redeem CODE")
+        await update.message.reply_text(
+            "No active access. Send /redeem CODE"
+            f"{support_line(settings)}"
+        )
         return
     if not await check_user_cooldown(update, context, settings):
         return

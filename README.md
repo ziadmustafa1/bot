@@ -14,6 +14,7 @@ Set:
 
 ```env
 BOT_TOKEN=your_token
+SUPPORT_USERNAME=@I_INW
 ADMIN_IDS=your_telegram_id
 ```
 
