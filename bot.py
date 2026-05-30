@@ -5,6 +5,7 @@ import asyncio
 import logging
 import re
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -67,6 +68,22 @@ async def fetch_bin_header(settings: Settings, prefix: str) -> tuple[str, BinInf
 def result_filename(prefix: str) -> str:
     safe = UNSAFE_FILENAME.sub("_", prefix).strip("._")[:80]
     return f"bin_results_{safe or 'bin'}.txt"
+
+
+def unique_data_path(data_dir: Path, original_name: str) -> Path:
+    original = Path(original_name).name
+    stem = Path(original).stem or "data"
+    suffix = Path(original).suffix
+    candidate = data_dir / original
+    if not candidate.exists():
+        return candidate
+
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    for counter in range(1, 10_000):
+        candidate = data_dir / f"{stem}_{timestamp}_{counter:04d}{suffix}"
+        if not candidate.exists():
+            return candidate
+    raise RuntimeError("Could not allocate a unique data filename")
 
 
 def parse_duration(value: str) -> int | None:
@@ -480,7 +497,7 @@ async def handle_document(update: Any, context: Any) -> None:
         return
 
     safe_name = Path(document.file_name).name
-    target = settings.data_dir / safe_name
+    target = unique_data_path(settings.data_dir, safe_name)
     try:
         telegram_file = await document.get_file()
         await update.message.chat.send_action(ChatAction.UPLOAD_DOCUMENT)
@@ -499,7 +516,7 @@ async def handle_document(update: Any, context: Any) -> None:
             f"Duplicate file skipped.\nAlready exists as: {duplicate.name}"
         )
         return
-    await update.message.reply_text(f"Saved file: {safe_name}\nRebuilding index now.")
+    await update.message.reply_text(f"Saved file: {target.name}\nRebuilding index now.")
     await rebuild(update, context)
 
 
