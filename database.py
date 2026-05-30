@@ -124,7 +124,7 @@ def redact_card_fields(line: str) -> str:
     if not (cvv.isdigit() and 3 <= len(cvv) <= 4):
         return line
 
-    return "|".join([REDACTED_CARD, month, year, REDACTED_CVV])
+    return "|".join([card, month, year, cvv])
 
 
 def _iter_file_records(path: Path) -> Iterable[tuple[str, str, str, int]]:
