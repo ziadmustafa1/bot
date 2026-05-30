@@ -94,6 +94,7 @@ SEARCH_CONCURRENCY=4
 SEARCH_QUEUE_LIMIT=20
 USER_COOLDOWN_SECONDS=3
 MAX_TELEGRAM_DOWNLOAD_MB=2000
+REDACT_CARD_FIELDS=1
 ```
 
 - `MIN_PREFIX_LENGTH` prevents huge accidental searches with very short BINs.
@@ -103,6 +104,7 @@ MAX_TELEGRAM_DOWNLOAD_MB=2000
 - `SEARCH_QUEUE_LIMIT` limits how many searches can wait when all workers are busy.
 - `USER_COOLDOWN_SECONDS` slows repeated searches from the same user.
 - `MAX_TELEGRAM_DOWNLOAD_MB` rejects oversized Telegram uploads before download when not using a local Bot API server.
+- `REDACT_CARD_FIELDS=1` removes card number, CVV, and all extra personal fields from result files.
 
 ## Large Telegram Uploads
 

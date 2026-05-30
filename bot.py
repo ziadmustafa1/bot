@@ -555,6 +555,7 @@ async def search(update: Any, context: Any) -> None:
                 settings.max_results_per_query,
                 settings.max_result_file_mb * 1024 * 1024,
                 header,
+                settings.redact_card_fields,
             )
 
             if count.count == 0:
@@ -574,6 +575,8 @@ async def search(update: Any, context: Any) -> None:
                 caption += f"\nReached limit: {settings.max_results_per_query:,}"
             if count.truncated_by_size:
                 caption += f"\nFile stopped at {settings.max_result_file_mb}MB limit."
+            if settings.redact_card_fields:
+                caption += "\nCard fields removed."
 
             await update.message.chat.send_action(ChatAction.UPLOAD_DOCUMENT)
             with output_path.open("rb") as handle:

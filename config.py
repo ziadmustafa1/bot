@@ -46,6 +46,7 @@ class Settings:
     search_queue_limit: int
     user_cooldown_seconds: int
     max_telegram_download_mb: int
+    redact_card_fields: bool
 
 
 def get_settings() -> Settings:
@@ -66,4 +67,6 @@ def get_settings() -> Settings:
         search_queue_limit=max(0, _int_env("SEARCH_QUEUE_LIMIT", 20)),
         user_cooldown_seconds=max(0, _int_env("USER_COOLDOWN_SECONDS", 3)),
         max_telegram_download_mb=max(1, _int_env("MAX_TELEGRAM_DOWNLOAD_MB", 20)),
+        redact_card_fields=os.getenv("REDACT_CARD_FIELDS", "1").strip().lower()
+        not in {"0", "false", "no", "off"},
     )

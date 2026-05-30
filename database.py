@@ -10,6 +10,9 @@ from pathlib import Path
 
 
 TEXT_EXTENSIONS = {".txt", ".csv", ".log", ".dat"}
+REDACTED_CARD = "[CARD_REMOVED]"
+REDACTED_EXP = "[EXP_REMOVED]"
+REDACTED_CVV = "[CVV_REMOVED]"
 
 
 @dataclass(frozen=True)
@@ -104,6 +107,24 @@ def init_db(db_path: Path) -> None:
 
 def _extract_key(line: str) -> str:
     return line.split("|", 1)[0].strip()
+
+
+def redact_card_fields(line: str) -> str:
+    parts = line.split("|")
+    if len(parts) < 4:
+        return line
+
+    card, month, year, cvv = (part.strip() for part in parts[:4])
+    if not (card.isdigit() and 12 <= len(card) <= 19):
+        return line
+    if not (month.isdigit() and 1 <= len(month) <= 2):
+        return line
+    if not (year.isdigit() and 2 <= len(year) <= 4):
+        return line
+    if not (cvv.isdigit() and 3 <= len(cvv) <= 4):
+        return line
+
+    return "|".join([REDACTED_CARD, month, year, REDACTED_CVV])
 
 
 def _iter_file_records(path: Path) -> Iterable[tuple[str, str, str, int]]:
@@ -211,6 +232,7 @@ def search_to_file(
     max_results: int = 0,
     max_bytes: int = 0,
     header: str = "",
+    redact_sensitive_fields: bool = True,
 ) -> SearchResult:
     upper = next_prefix(prefix)
     count = 0
@@ -245,6 +267,8 @@ def search_to_file(
             )
 
         for (line,) in cursor:
+            if redact_sensitive_fields:
+                line = redact_card_fields(line)
             line_bytes = len(line.encode("utf-8")) + 1
             if max_bytes and count > 0 and bytes_written + line_bytes > max_bytes:
                 truncated_by_size = True
