@@ -210,6 +210,7 @@ def search_to_file(
     output_path: Path,
     max_results: int = 0,
     max_bytes: int = 0,
+    header: str = "",
 ) -> SearchResult:
     upper = next_prefix(prefix)
     count = 0
@@ -220,6 +221,10 @@ def search_to_file(
     with closing(_connect(db_path)) as conn, output_path.open(
         "w", encoding="utf-8", newline="\n"
     ) as output:
+        if header:
+            output.write(header.rstrip("\n"))
+            output.write("\n\n")
+
         if upper is None:
             cursor = conn.execute(
                 """

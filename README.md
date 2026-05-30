@@ -16,6 +16,7 @@ Set:
 BOT_TOKEN=your_token
 SUPPORT_USERNAME=@I_INW
 LOCAL_BOT_API_URL=
+BIN_LOOKUP_URL=http://bins.antipublic.cc/bins
 ADMIN_IDS=your_telegram_id
 ```
 
@@ -120,6 +121,7 @@ MAX_TELEGRAM_DOWNLOAD_MB=2000
 - The bot scans all supported files inside `data`; it is not tied to any specific file name.
 - Duplicate files are detected by SHA256 hash and skipped during indexing.
 - If the same file is uploaded through Telegram again, the new copy is removed.
+- BIN metadata is fetched from `BIN_LOOKUP_URL` and added to the top of result files.
 
 ## Production Docs
 

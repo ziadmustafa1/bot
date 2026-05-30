@@ -19,6 +19,7 @@ from access_control import (
     redeem_code,
     revoke_code,
 )
+from bin_lookup import BinInfo, format_bin_header, lookup_bin
 from config import Settings, get_settings
 from database import ensure_dirs, find_duplicate_file, rebuild_index, search_to_file, stats
 
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 SAFE_PREFIX = re.compile(r"^[^\s]{1,128}$")
 UNSAFE_FILENAME = re.compile(r"[^A-Za-z0-9_.-]+")
 DURATION = re.compile(r"^(\d+)(m|h|d)$", re.IGNORECASE)
+BIN_FROM_URL = re.compile(r"/bins/(\d{6,})/?$", re.IGNORECASE)
 
 
 def is_admin(settings: Settings, user_id: int | None) -> bool:
@@ -42,7 +44,24 @@ def clean_prefix(text: str) -> str:
     text = text.strip()
     if text.startswith("/search"):
         text = text.removeprefix("/search").strip()
+    match = BIN_FROM_URL.search(text)
+    if match:
+        return match.group(1)
     return text
+
+
+def lookup_bin_value(prefix: str) -> str:
+    return prefix[:6]
+
+
+async def fetch_bin_header(settings: Settings, prefix: str) -> tuple[str, BinInfo]:
+    bin_value = lookup_bin_value(prefix)
+    try:
+        info = await lookup_bin(settings.bin_lookup_url, bin_value)
+    except Exception:
+        logger.exception("BIN lookup failed for %s", bin_value)
+        info = BinInfo(bin=bin_value)
+    return format_bin_header(info), info
 
 
 def result_filename(prefix: str) -> str:
@@ -527,6 +546,7 @@ async def search(update: Any, context: Any) -> None:
         output_path = settings.tmp_dir / f"result_{update.effective_chat.id}_{int(time.time() * 1000)}.txt"
         started = time.monotonic()
         try:
+            header, bin_info = await fetch_bin_header(settings, prefix)
             count = await asyncio.to_thread(
                 search_to_file,
                 settings.db_path,
@@ -534,6 +554,7 @@ async def search(update: Any, context: Any) -> None:
                 output_path,
                 settings.max_results_per_query,
                 settings.max_result_file_mb * 1024 * 1024,
+                header,
             )
 
             if count.count == 0:
@@ -542,7 +563,13 @@ async def search(update: Any, context: Any) -> None:
                 return
 
             elapsed = time.monotonic() - started
-            caption = f"Results: {count.count:,}\nTime: {elapsed:.2f}s"
+            caption = (
+                f"BIN: {bin_info.bin}\n"
+                f"Country: {bin_info.country_name}\n"
+                f"Bank: {bin_info.bank}\n"
+                f"Results: {count.count:,}\n"
+                f"Time: {elapsed:.2f}s"
+            )
             if count.truncated_by_results:
                 caption += f"\nReached limit: {settings.max_results_per_query:,}"
             if count.truncated_by_size:
