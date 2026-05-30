@@ -443,6 +443,13 @@ async def handle_document(update: Any, context: Any) -> None:
     if document is None or not document.file_name:
         await update.message.reply_text("Send a valid text file.")
         return
+    if document.file_size and document.file_size > settings.max_telegram_download_mb * 1024 * 1024:
+        await update.message.reply_text(
+            f"File is too big for Telegram Bot API download.\n"
+            f"Max upload through bot: {settings.max_telegram_download_mb}MB\n"
+            "Upload it directly to the server data folder, then use /sync."
+        )
+        return
 
     suffix = Path(document.file_name).suffix.lower()
     if suffix not in {".txt", ".csv", ".log", ".dat"}:
@@ -451,9 +458,17 @@ async def handle_document(update: Any, context: Any) -> None:
 
     safe_name = Path(document.file_name).name
     target = settings.data_dir / safe_name
-    telegram_file = await document.get_file()
-    await update.message.chat.send_action(ChatAction.UPLOAD_DOCUMENT)
-    await telegram_file.download_to_drive(custom_path=target)
+    try:
+        telegram_file = await document.get_file()
+        await update.message.chat.send_action(ChatAction.UPLOAD_DOCUMENT)
+        await telegram_file.download_to_drive(custom_path=target)
+    except Exception as exc:
+        logger.exception("Document download failed")
+        await update.message.reply_text(
+            "Could not download this file from Telegram.\n"
+            "If it is larger than 20MB, upload it directly to the server data folder and use /sync."
+        )
+        return
     duplicate = await asyncio.to_thread(find_duplicate_file, settings.data_dir, target)
     if duplicate is not None:
         target.unlink(missing_ok=True)

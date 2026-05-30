@@ -91,6 +91,7 @@ MAX_RESULTS_PER_QUERY=0
 SEARCH_CONCURRENCY=4
 SEARCH_QUEUE_LIMIT=20
 USER_COOLDOWN_SECONDS=3
+MAX_TELEGRAM_DOWNLOAD_MB=20
 ```
 
 - `MIN_PREFIX_LENGTH` prevents huge accidental searches with very short BINs.
@@ -99,6 +100,7 @@ USER_COOLDOWN_SECONDS=3
 - `SEARCH_CONCURRENCY` limits simultaneous searches.
 - `SEARCH_QUEUE_LIMIT` limits how many searches can wait when all workers are busy.
 - `USER_COOLDOWN_SECONDS` slows repeated searches from the same user.
+- `MAX_TELEGRAM_DOWNLOAD_MB` rejects oversized Telegram uploads before download.
 
 ## Notes
 
