@@ -36,6 +36,12 @@ Run the bot:
 .\run_bot.ps1
 ```
 
+On Linux or hosting platforms that expect `main.py`:
+
+```bash
+python main.py
+```
+
 Check health:
 
 ```powershell
