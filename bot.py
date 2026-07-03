@@ -613,14 +613,34 @@ async def search(update: Any, context: Any) -> None:
 
 def create_application(settings: Settings) -> Any:
     from telegram.ext import Application, CommandHandler, MessageHandler, filters
+    from telegram.request import HTTPXRequest
 
     ensure_dirs(settings.data_dir, settings.db_path, settings.tmp_dir)
     init_access_db(settings.auth_db_path)
     if not settings.admin_ids:
         logger.warning("ADMIN_IDS is empty. Admin commands are disabled until you set it in .env.")
+
+    request = HTTPXRequest(
+        connect_timeout=60.0,
+        read_timeout=1800.0,
+        write_timeout=1800.0,
+        pool_timeout=60.0,
+        connection_pool_size=32,
+    )
+
+    get_updates_request = HTTPXRequest(
+        connect_timeout=60.0,
+        read_timeout=60.0,
+        write_timeout=60.0,
+        pool_timeout=60.0,
+        connection_pool_size=8,
+    )
+
     builder = (
         Application.builder()
         .token(settings.bot_token)
+        .request(request)
+        .get_updates_request(get_updates_request)
         .concurrent_updates(True)
         .post_init(configure_bot_commands)
     )
@@ -630,6 +650,7 @@ def create_application(settings: Settings) -> Any:
             .base_file_url(f"{settings.local_bot_api_url}/file/bot")
             .local_mode(True)
         )
+
     app = builder.build()
     app.bot_data["settings"] = settings
     app.bot_data["search_semaphore"] = asyncio.Semaphore(settings.search_concurrency)
